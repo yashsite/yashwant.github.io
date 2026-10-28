@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: propstream-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: propstream
+      POSTGRES_PASSWORD: propstream_secret
+      POSTGRES_DB: lead_warehouse
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: propstream-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+  api-middleware:
+    build:
+      context: ./apps/api-middleware
+    container_name: propstream-api
+    restart: unless-stopped
+    env_file:
+      - .env.example
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+      - redis
+
+  web-dashboard:
+    build:
+      context: ./apps/web-dashboard
+    container_name: propstream-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-middleware
+
+volumes:
+  pgdata:
+  redisdata:

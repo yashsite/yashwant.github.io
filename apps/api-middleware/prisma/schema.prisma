@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  OPERATIONS_TEAM
+  SALES_TEAM
+}
+
+enum LeadSource {
+  GOOGLE_SHEETS_EXCEL
+  META_LEAD_ADS
+  GOOGLE_ADS
+  LINKEDIN_LEAD_FORMS
+  APOLLO
+}
+
+enum LeadValidationStatus {
+  VALID
+  DUPLICATE
+  INVALID
+}
+
+enum CrmDeliveryStatus {
+  SUCCESS
+  PENDING
+  RETRY
+  FAILED
+}
+
+enum DistributionMode {
+  REAL_TIME
+  SCHEDULED
+}
+
+enum ScheduledInterval {
+  EVERY_1_MINUTE
+  EVERY_5_MINUTES
+  EVERY_15_MINUTES
+  EVERY_30_MINUTES
+  HOURLY
+  DAILY
+}
+
+// Admin-Assigned Whitelist Table for 1-Click Google, WhatsApp & GitHub Login
+model User {
+  id                 String   @id @default(uuid())
+  fullName           String
+  designation        String
+  role               UserRole @default(SALES_TEAM)
+  googleEmail        String   @unique
+  whatsappNumber     String   @unique
+  normalizedWhatsapp String   @unique
+  githubHandle       String?  @unique
+  passwordHash       String
+  provisionedBy      String
+  isWhitelisted      Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// Real Estate Project & Connected CRM Mapping
+model Project {
+  id               String            @id @default(uuid())
+  projectCode      String            @unique
+  projectName      String            @unique
+  developer        String
+  location         String
+  status           String            @default("Active")
+  cplEstimate      Float             @default(1500)
+  conversionRate   Float             @default(4.8)
+  // CRM Mapping Configuration
+  crmAssigned      String            // e.g. "Sell.do", "LeadSquared", "Custom CRM"
+  crmApiUrl        String
+  crmApiKey        String
+  crmAuthType      String            // "Bearer Token", "X-API-Key Header", "HMAC-SHA256 Signature"
+  crmWebhookUrl    String?
+  distributionMode DistributionMode  @default(REAL_TIME)
+  syncInterval     ScheduledInterval @default(EVERY_15_MINUTES)
+  leads            Lead[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+// Unified Lead Master Database Table
+model Lead {
+  id              String               @id @default(uuid())
+  leadCode        String               @unique // e.g. LD-1001
+  customerName    String
+  phoneNumber     String
+  normalizedPhone String               // Last 10 digits for deduplication
+  email           String?
+  projectId       String
+  project         Project              @relation(fields: [projectId], references: [id])
+  projectName     String
+  leadSource      LeadSource
+  campaignName    String?
+  city            String?
+  budget          String?
+  remarks         String?
+  leadDate        DateTime
+  importDate      DateTime             @default(now())
+  status          LeadValidationStatus @default(VALID)
+  qualityScore    Int                  @default(80)
+  leadTier        String               @default("Warm") // Hot, Warm, Cold
+  crmStatus       CrmDeliveryStatus    @default(PENDING)
+  crmResponseCode Int?
+  crmSyncedAt     DateTime?
+  crmRetryCount   Int                  @default(0)
+  assignedTeam    String               @default("Unassigned")
+  createdBy       String
+  duplicateOfId   String?
+
+  // Fast composite index for Duplicate Detection (Same Phone + Same Project)
+  @@index([normalizedPhone, projectName])
+  @@index([projectName, leadSource, crmStatus, leadDate])
+}

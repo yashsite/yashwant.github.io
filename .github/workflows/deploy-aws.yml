@@ -1,0 +1,44 @@
+name: PropStream Lead Warehouse CI/CD
+
+on:
+  push:
+    branches: [ main, staging ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: propstream
+          POSTGRES_PASSWORD: propstream_secret
+          POSTGRES_DB: lead_warehouse_test
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm install
+
+      - name: Validate Prisma Schema
+        run: npx prisma validate --schema=apps/api-middleware/prisma/schema.prisma
+
+      - name: Build NestJS API Middleware & Next.js Dashboard
+        run: npm run build

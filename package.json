@@ -1,0 +1,21 @@
+{
+  "name": "real-estate-lead-warehouse",
+  "version": "2.4.0",
+  "private": true,
+  "description": "Real Estate Lead Data Warehouse & Automated CRM Distribution Middleware Platform",
+  "workspaces": [
+    "apps/api-middleware",
+    "apps/web-dashboard"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=apps/api-middleware\" \"npm run dev --workspace=apps/web-dashboard\"",
+    "build": "npm run build --workspaces",
+    "prisma:generate": "npx prisma generate --schema=apps/api-middleware/prisma/schema.prisma",
+    "prisma:migrate": "npx prisma migrate deploy --schema=apps/api-middleware/prisma/schema.prisma",
+    "prisma:seed": "ts-node apps/api-middleware/prisma/seed.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}
